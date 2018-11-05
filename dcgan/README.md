@@ -1,0 +1,2 @@
+# chainer-dcgan for mnist
+
