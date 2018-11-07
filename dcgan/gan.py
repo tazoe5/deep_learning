@@ -1,9 +1,11 @@
 #*- coding:utf-8 -*
 import os, sys
 import chainer
+from chainer import cuda
 from chainer import functions as F
 from chainer import links as L
 import numpy as np
+from tqdm import tqdm
 
 ##### params #####
 Ng = 128
@@ -22,7 +24,7 @@ def add_noise(h, sigma=0.2):
     return h
 
 """
-Implementation of Stack GAN using chainer.
+Implementation of DCGAN using chainer.
 
 """
 
@@ -42,7 +44,7 @@ class Generator(chainer.Chain):
       self.bn3 = L.BatchNormalization(64)
   
   def make_hidden(self, batchsize):
-    return np.random.uniform(-1, 1, (batchsize, self.z_dim, 1, 1))\
+    return cuda.cupy.random.uniform(-1, 1, (batchsize, self.z_dim, 1, 1))\
             .astype(np.float32)
 
   def __call__(self, z, test=False):
@@ -78,15 +80,27 @@ class Discriminator(chainer.Chain):
     return z
 
 if __name__ == '__main__':
+  
   z_dim = 100
   z_num = 3
+  gpu = 0
+
   model_g = Generator(z_dim)
   model_d = Discriminator(z_dim)
+  
+  if gpu == 0:
+    cuda.get_device(gpu).use()
+    model_g.to_gpu(gpu)
+    model_d.to_gpu(gpu)
+    xp = cuda.cupy
+  else:
+    xp = np
   print('model setup.')
-  z = np.random.random((z_num, z_dim)).astype(np.float32)
+  z = xp.random.random((z_num, z_dim)).astype(xp.float32)
   z= chainer.Variable(z)
+  for i in tqdm(np.arange(100000)):
+    x = model_g(z)
+    z_d = model_d(x)
   print('z.shape: {}'.format(z.shape))
-  x = model_g(z)
   print('x.shape: {}'.format(x.shape))
-  z_d = model_d(x)
   print('z_d.shape: {}'.format(z_d.shape))
